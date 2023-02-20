@@ -1,0 +1,106 @@
+import pandas as pd
+df_participant = pd.read_csv('https://storage.googleapis.com/dqlab-dataset/dqthon-participants.csv')
+df_participant.info()
+Data columns (total 10 columns):
+ #   Column          Non-Null Count  Dtype  
+---  ------          --------------  -----  
+ 0   participant_id  5000 non-null   object 
+ 1   first_name      5000 non-null   object 
+ 2   last_name       5000 non-null   object 
+ 3   birth_date      5000 non-null   object 
+ 4   address         5000 non-null   object 
+ 5   phone_number    5000 non-null   object 
+ 6   country         5000 non-null   object 
+ 7   institute       5000 non-null   object 
+ 8   occupation      5000 non-null   object 
+ 9   register_time   5000 non-null   float64
+ 
+ 
+# Mencari KODE POS
+df_participant['postal_code'] = df_participant['address'].str.extract(r'(\d+)$') #Masukkan regex Anda didalam fungsi extract
+df_participant['postal_code'].head(5)
+0    80734
+1    09434
+2    57739
+3    76156
+4    70074
+
+# Mencari City dari alamat
+df_participant['city'] = df_participant['address'].str.extract(r'(?<=\n)(\w.+)(?=,)')
+df_participant['city'].head(5)
+0           Medan
+1      Prabumulih
+2           Ambon
+3    Lubuklinggau
+4          Kediri
+
+#mendapatkan github dari name
+df_participant['github_profile'] = 'https://github.com/' + df_participant['first_name'].str.lower() + df_participant['last_name'].str.lower()
+df_participant['github_profile'].head(5)
+0      https://github.com/citranurdiyanti
+1         https://github.com/arissetiawan
+2    https://github.com/corneliahandayani
+3          https://github.com/solehrajasa
+4           https://github.com/viviastuti
+
+# Cleansing no.hp
+df_participant['cleaned_phone_number'] = df_participant['phone_number'].str.replace(r'^(\+62|62)', '0')
+df_participant['cleaned_phone_number'] = df_participant['cleaned_phone_number'].str.replace(r'[()-]', '') #-----> karakter yg ada () dan -
+df_participant['cleaned_phone_number'] = df_participant['cleaned_phone_number'].str.replace(r'\s+', '') #----> \s karakter yg ada spasinya
+df_participant['cleaned_phone_number'].head()
+
+# Membuat nama tim
+def func(col):
+    abbrev_name = "%s%s"%(col['first_name'][0],col['last_name'][0]) #Singkatan dari Nama Depan dan Nama Belakang dengan mengambil huruf pertama
+    country = col['country']
+    abbrev_institute = '%s'%(''.join(list(map(lambda word: word[0], col['institute'].split())))) #Singkatan dari value di kolom institute
+    return "%s-%s-%s"%(abbrev_name,country,abbrev_institute)
+
+df_participant['team_name'] = df_participant.apply(func, axis=1)
+df_participant['team_name'].head()
+0       CN-Georgia-UPM
+1    AS-Korea Utara-UD
+2        CH-Komoro-UHP
+3       SR-Eritrea-PTY
+4      VA-Aljazair-PHR
+
+#  Membuat E-MAIL dari nama dan kampus
+def func(col):
+    first_name_lower = col['first_name'].lower()
+    last_name_lower = col['last_name'].lower()
+    institute = ''.join(list(map(lambda word: word[0], col['institute'].lower().split()))) #Singkatan dari nama perusahaan dalam lowercase
+
+    if 'Universitas' in col['institute']:
+        if len(col['country'].split()) > 1: #Kondisi untuk mengecek apakah jumlah kata dari country lebih dari 1
+            country = ''.join(list(map(lambda word: word[0], col['country'].lower().split())))
+        else:
+            country = col['country'][:3].lower()
+        return "%s%s@%s.ac.%s"%(first_name_lower,last_name_lower,institute,country)
+
+    return "%s%s@%s.com"%(first_name_lower,last_name_lower,institute)
+
+df_participant['email'] = df_participant.apply(func, axis=1)
+df_participant['email'].head()
+0      citranurdiyanti@upm.com
+1        arissetiawan@ud.ac.ku
+2    corneliahandayani@uhp.com
+3          solehrajasa@pty.com
+4           viviastuti@phr.com
+
+# Cleansing tanggal lahir
+df_participant['birth_date'] = pd.to_datetime(df_participant['birth_date'], format='%d %b %Y')
+df_participant['birth_date'].head()
+0   1991-02-05
+1   1993-01-11
+2   1993-07-31
+3   1991-11-04
+4   2003-01-22
+
+# Cleaning Tgl daftar kompetisi
+df_participant['register_at'] = pd.to_datetime(df_participant['register_time'], unit='s')
+df_participant['register_at'].head()
+0   2021-04-05 14:47:26
+1   2021-04-05 14:46:58
+2   2021-04-05 14:47:15
+3   2021-04-05 14:47:14
+4   2021-04-05 14:46:50
